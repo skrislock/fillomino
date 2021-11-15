@@ -12,7 +12,6 @@ type Coordinate struct {
 }
 
 func solve() [][]string {
-
 	/*
 		board := [][]string{
 			{"1", "_", "_", "4", "_", "_", "4", "_", "_", "3"},
@@ -125,28 +124,49 @@ func solve() [][]string {
 						possibleWrites := findAdjacentValues(i, j, &board, "_")
 						// NEXT if joining to the one of possible writes would make it over the targetValue, eliminate it from the set
 
-						if len(possibleWrites) == 0 {
-							continue
-						}
-
 						// NEXT if joining to the one of possible writes would make it over the targetValue, eliminate it from the set
 						// remove possible moves that will result in a too long section
 						// TODO Maybe need to move or reshape this in next sub-solutions
 						removeBadJumpingWrites(i, j, thisCount, &possibleWrites, &board, board[i][j])
 
+						if len(possibleWrites) == 0 {
+							continue
+						}
+
+						alreadyBoundAnalyzed := make(map[Coordinate]bool)
+
+						// need to make sure that this is the only valid way this block can grow
+						// so we check if other ways to grow this block exist
+						hasOtherOption, otherOptionBoundValue := otherOptionExists(i, j, thisCount, targetValue, nil, alreadyBoundAnalyzed, doneSet, &board)
+
 						// if just one, write
-						if len(possibleWrites) == 1 {
-							// need to make sure that this is the only valid way this block can grow
-							// so we check if other ways to grow this block exist
-							if !otherOptionExists(i, j, thisCount, nil, &board) {
-								for k := range possibleWrites {
-									board[k.I][k.J] = board[i][j]
+						if len(possibleWrites) == 1 && !hasOtherOption {
+							for k := range possibleWrites { // TODO if this is an array or slice maybe this can be cleaner
+								board[k.I][k.J] = board[i][j]
+							}
+						} else {
+							alreadyBoundAnalyzed[Coordinate{i, j}] = true
+							myBoundCount := 0
+							for k := range possibleWrites {
+								thisBoundCount := analyzeBlankSpace(k.I, k.J, targetValue, alreadyBoundAnalyzed, doneSet, &board)
+								if thisBoundCount == -1 {
+									myBoundCount = -1
+									break
+								} else {
+									myBoundCount += thisBoundCount
 								}
 							}
 
-						} else { // TODO I think we can do something for all cases, but for now if
-							// we are in this state then we will count for bound
-
+							if (hasOtherOption && otherOptionBoundValue > 0) || len(possibleWrites) > 1 {
+								if hasOtherOption && otherOptionBoundValue > 0 { // TODO is this supposed to be -1?
+									myBoundCount += otherOptionBoundValue
+								}
+								if myBoundCount+thisCount == targetValue {
+									for k := range possibleWrites { // TODO if this is an array or slice maybe this can be cleaner
+										board[k.I][k.J] = board[i][j]
+									}
+								}
+							}
 						}
 					}
 				}
@@ -208,30 +228,38 @@ func removeBadJumpingWrites(i, j, countSoFar int, possibleWrites *map[Coordinate
 }
 
 // check if the solution block that you are presently in has other options that it might grow
-func otherOptionExists(i, j, thisCount int, alreadyCounted map[Coordinate]bool, board *[][]string) (bool, int) {
+func otherOptionExists(i, j, thisCount, targetValue int, alreadyCounted, alreadyBoundAnalyzed, doneSet map[Coordinate]bool, board *[][]string) (bool, int) {
 	if alreadyCounted == nil {
 		alreadyCounted = make(map[Coordinate]bool)
 		// we dont want to count the one move we are thinking to make
 		alreadyCounted[Coordinate{i, j}] = true
 	}
 
+	if alreadyBoundAnalyzed == nil {
+		alreadyBoundAnalyzed = make(map[Coordinate]bool)
+	}
+
+	myBoundCount := 0
+
 	adjacentBlankValues := findAdjacentValues(i, j, board, "_")
 	if len(adjacentBlankValues) > 0 {
 		// NEXT if joining to the one of possible writes would make it over the targetValue, eliminate it from the set
 		// remove possible moves that will result in a too long section
+		// TODO: Do we need to add these bad jumping writes to the alreadyBoundAnalyzed Coordinate map?
 		removeBadJumpingWrites(i, j, thisCount, &adjacentBlankValues, board, (*board)[i][j])
 	}
 	if !alreadyCounted[Coordinate{i, j}] && len(adjacentBlankValues) > 0 {
-		alreadyAnalyzed := make(map[Coordinate]bool)
-		alreadyAnalyzed[Coordinate{i, j}] = true
-		boundCountSize := -1
 		for abv := range adjacentBlankValues {
 			// go through each adjacent blank value, see if it is bound
-			// if it is not bound, return true, -1
-			// if everything is bound, count up all the bounds and return as true, boundCountSize
-			// when we removeBadJumpingWrites, maybe want to add them to alreadyAnalyzed first
+			thisBoundCount := analyzeBlankSpace(abv.I, abv.J, targetValue, alreadyBoundAnalyzed, doneSet, board)
+			if thisBoundCount == -1 {
+				// if it is not bound, return true, -1
+				return true, -1
+			} else {
+				// if everything is bound, count up all the bounds, and carry on to the next adjacent targetValue spaces
+				myBoundCount += thisBoundCount
+			}
 		}
-		return true, boardCountSize
 	}
 
 	alreadyCounted[Coordinate{i, j}] = true
@@ -241,14 +269,23 @@ func otherOptionExists(i, j, thisCount int, alreadyCounted map[Coordinate]bool, 
 
 	for k := range adjacentSameValues {
 		if !alreadyCounted[Coordinate{k.I, k.J}] {
-			hasOtherOption, otherOptionBoundValue := otherOptionExists(k.I, k.J, thisCount, alreadyCounted, board)
+			hasOtherOption, otherOptionBoundValue := otherOptionExists(k.I, k.J, thisCount, targetValue,
+				alreadyCounted, alreadyBoundAnalyzed, doneSet, board)
 			if hasOtherOption {
-				return true, otherOptionBoundValue
+				if otherOptionBoundValue == -1 {
+					return true, -1
+				} else {
+					myBoundCount += otherOptionBoundValue
+				}
 			}
 		}
 	}
 
-	return false, -1
+	if myBoundCount > 0 {
+		return true, myBoundCount
+	} else {
+		return false, -1
+	}
 }
 
 // returns a set of values adjacent to a given i, j that matches the value parameter
@@ -300,7 +337,8 @@ func deduceBlankValue(i int, j int, doneSet map[Coordinate]bool, board *[][]stri
 
 // determines if this blank space is part of a continuous space bound by done cells
 // returns the number of blank spaces bound by done cells, or -1 if it is not bound
-func analyzeBlankSpace(i, j, targetValue int, alreadyAnalyzed map[Coordinate]bool, doneSet map[Coordinate]bool, board *[][]string) int {
+// TODO: targetValue is not implemented yet, the parameter is not actually used
+func analyzeBlankSpace(i, j, targetValue int, alreadyAnalyzed, doneSet map[Coordinate]bool, board *[][]string) int {
 	// TODO maybe don't need these as variables?  just put len(*board) or len((*board)[0]) in the if statements below
 	h := len(*board)
 	w := len((*board)[0])
@@ -381,7 +419,7 @@ func determinePossibleSeedValue(i, j, maxPossibleValue int, doneSet map[Coordina
 	}
 
 	//  check up
-	if i > 0 && "_" != (*board)[i-1][j] {
+	if i > 0 && (*board)[i-1][j] != "_" {
 		if !doneSet[Coordinate{i - 1, j}] {
 			return -1
 		} else {
@@ -394,7 +432,7 @@ func determinePossibleSeedValue(i, j, maxPossibleValue int, doneSet map[Coordina
 	}
 
 	// check down
-	if i < (h-1) && "_" != (*board)[i+1][j] {
+	if i < (h-1) && (*board)[i+1][j] != "_" {
 		if !doneSet[Coordinate{i + 1, j}] {
 			return -1
 		} else {
@@ -407,7 +445,7 @@ func determinePossibleSeedValue(i, j, maxPossibleValue int, doneSet map[Coordina
 	}
 
 	// check left
-	if j > 0 && "_" != (*board)[i][j-1] {
+	if j > 0 && (*board)[i][j-1] != "_" {
 		if !doneSet[Coordinate{i, j - 1}] {
 			return -1
 		} else {
@@ -420,7 +458,7 @@ func determinePossibleSeedValue(i, j, maxPossibleValue int, doneSet map[Coordina
 	}
 
 	// check right
-	if j < (w-1) && "_" != (*board)[i][j+1] {
+	if j < (w-1) && (*board)[i][j+1] != "_" {
 		if !doneSet[Coordinate{i, j + 1}] {
 			return -1
 		} else {
