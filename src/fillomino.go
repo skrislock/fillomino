@@ -250,6 +250,7 @@ func otherOptionExists(i, j, thisCount, targetValue int, alreadyCounted, already
 		removeBadJumpingWrites(i, j, thisCount, &adjacentBlankValues, board, (*board)[i][j])
 	}
 	if !alreadyCounted[Coordinate{i, j}] && len(adjacentBlankValues) > 0 {
+		alreadyBoundAnalyzed[Coordinate{i, j}] = true
 		for abv := range adjacentBlankValues {
 			// go through each adjacent blank value, see if it is bound
 			thisBoundCount := analyzeBlankSpace(abv.I, abv.J, targetValue, alreadyBoundAnalyzed, doneSet, board)
