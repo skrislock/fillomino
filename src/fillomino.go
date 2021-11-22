@@ -12,46 +12,6 @@ type Coordinate struct {
 }
 
 func solve(board [][]string) [][]string {
-	/*
-		board := [][]string{
-			{"1", "_", "_", "4", "_", "_", "4", "_", "_", "3"},
-			{"2", "_", "_", "2", "_", "_", "2", "_", "_", "4"},
-			{"3", "_", "_", "3", "_", "_", "4", "_", "_", "1"},
-			{"6", "_", "_", "6", "_", "_", "2", "_", "_", "5"},
-			{"_", "4", "_", "_", "1", "_", "_", "5", "_", "_"},
-			{"_", "_", "4", "_", "_", "5", "_", "_", "3", "_"},
-			{"4", "_", "_", "6", "_", "_", "6", "_", "_", "3"},
-			{"4", "_", "_", "4", "_", "_", "5", "_", "_", "1"},
-			{"4", "_", "_", "3", "_", "_", "3", "_", "_", "3"},
-			{"6", "_", "_", "6", "_", "_", "6", "_", "_", "2"}}
-	*/
-
-	/*
-		board := [][]string{
-			{"4", "4", "_", "_", "_", "_", "_", "_", "_", "_"},
-			{"3", "3", "_", "_", "4", "4", "_", "_", "_", "_"},
-			{"2", "4", "_", "_", "3", "2", "_", "_", "2", "4"},
-			{"_", "_", "_", "_", "4", "4", "_", "_", "4", "3"},
-			{"_", "_", "_", "_", "_", "_", "_", "_", "1", "3"},
-			{"3", "4", "_", "_", "_", "_", "_", "_", "_", "_"},
-			{"1", "2", "_", "_", "2", "4", "_", "_", "_", "_"},
-			{"4", "3", "_", "_", "3", "2", "_", "_", "2", "3"},
-			{"_", "_", "_", "_", "4", "3", "_", "_", "3", "3"},
-			{"_", "_", "_", "_", "_", "_", "_", "_", "4", "4"}}
-	*/
-	/*
-		board := [][]string{
-			{"8", "_", "1", "_", "_", "_", "1", "_", "_", "_"},
-			{"2", "_", "_", "_", "1", "_", "2", "6", "5", "_"},
-			{"_", "4", "2", "1", "_", "_", "_", "7", "_", "_"},
-			{"_", "_", "_", "_", "_", "_", "2", "_", "_", "1"},
-			{"_", "3", "_", "_", "4", "_", "_", "_", "1", "4"},
-			{"2", "2", "_", "_", "_", "1", "_", "_", "4", "_"},
-			{"1", "_", "_", "3", "_", "_", "_", "_", "_", "_"},
-			{"_", "_", "3", "_", "_", "_", "1", "6", "2", "_"},
-			{"_", "2", "2", "1", "_", "3", "_", "_", "_", "3"},
-			{"_", "_", "_", "8", "_", "_", "_", "6", "_", "5"}}
-	*/
 	h := len(board)
 	w := len(board[0])
 
@@ -82,6 +42,8 @@ func solve(board [][]string) [][]string {
 					continue
 				}
 				if board[i][j] == "_" {
+					// SUB SOLUTION:  SEED
+
 					// check surrounding cells, and if they are all done, we can start to fill
 					// in blanks.  Blank blocks larger than size 1 may take extra iteration to
 					// determine fill value, eg. a blank size of 3 might be 1 block of 3 or 1 block of
@@ -119,6 +81,7 @@ func solve(board [][]string) [][]string {
 					} else if thisCount > targetValue {
 						fmt.Printf("error at %v, %v, value is %v, count is %v\n", i, j, targetValue, thisCount)
 					} else {
+						alreadyBoundAnalyzed := make(map[Coordinate]bool)
 						// todo maybe make this into a function that returns a map
 
 						// identify possible writing directions
@@ -128,13 +91,16 @@ func solve(board [][]string) [][]string {
 						// NEXT if joining to the one of possible writes would make it over the targetValue, eliminate it from the set
 						// remove possible moves that will result in a too long section
 						// TODO Maybe need to move or reshape this in next sub-solutions
-						removeBadJumpingWrites(i, j, thisCount, &possibleWrites, &board, board[i][j])
+						badJumpingWrites := identifyBadJumpingWrites(i, j, thisCount, &possibleWrites, &board, board[i][j])
+
+						for k := range badJumpingWrites {
+							alreadyBoundAnalyzed[Coordinate{k.I, k.J}] = true
+							delete(possibleWrites, Coordinate{k.I, k.J})
+						}
 
 						if len(possibleWrites) == 0 {
 							continue
 						}
-
-						alreadyBoundAnalyzed := make(map[Coordinate]bool)
 
 						// need to make sure that this is the only valid way this block can grow
 						// so we check if other ways to grow this block exist
@@ -146,6 +112,11 @@ func solve(board [][]string) [][]string {
 								board[k.I][k.J] = board[i][j]
 							}
 						} else {
+							// SUB SOLUTION: BOUND FORCE
+							// This cell is completed surrounded by done cells or the wall, and the empty
+							// space held within is equal to the cells value.  So all the empty spaces
+							// must be this value, so write one of them here.  We know the surrounding cells
+							// don't want to come in here because they are all in the doneSet
 							alreadyBoundAnalyzed[Coordinate{i, j}] = true
 							myBoundCount := 0
 							for k := range possibleWrites {
@@ -166,8 +137,23 @@ func solve(board [][]string) [][]string {
 									for k := range possibleWrites { // TODO if this is an array or slice maybe this can be cleaner
 										board[k.I][k.J] = board[i][j]
 									}
+									continue
 								}
 							}
+
+							// we are not bound, but still might be in a positition to force
+							if len(possibleWrites) > 1 || hasOtherOption { // hasOtherOptions infers len(possibleWrites) == 1
+								alreadyForceAnalyzed := make(map[Coordinate]bool)
+
+								for k := range possibleWrites { // TODO if this is an array or slice maybe this can be cleaner
+									// consider this write (board[k.I][k.J]) for a force.
+									mySpaceCount := countContinuous(k.I, k.J, 1, alreadyForceAnalyzed, &board)
+									if mySpaceCount+thisCount <= targetValue {
+										fmt.Println("Working On Force")
+									}
+								}
+							}
+
 						}
 					}
 				}
@@ -204,28 +190,26 @@ func countContinuous(i, j, counter int, alreadyCounted map[Coordinate]bool, boar
 	return counter
 }
 
-func removeBadJumpingWrites(i, j, countSoFar int, possibleWrites *map[Coordinate]bool, board *[][]string, value string) {
+func identifyBadJumpingWrites(i, j, countSoFar int, possibleWrites *map[Coordinate]bool, board *[][]string, value string) map[Coordinate]bool {
 	targetValue, err := strconv.Atoi(value)
 	if err != nil {
 		fmt.Println("error")
 	}
 
 	// I don't think it's safe to alter a set as I am ranging through it so I'll make a set to delete
-	removeFromWrites := make(map[Coordinate]bool)
+	badJumpingWrites := make(map[Coordinate]bool)
 
 	for y := range *possibleWrites {
 		// find same value
 		skipToSameValueCells := findAdjacentValues(y.I, y.J, board, value)
 		for z := range skipToSameValueCells {
 			if !(z.I == i && z.J == j) && countSoFar+countContinuous(z.I, z.J, 0, nil, board)+1 > targetValue {
-				removeFromWrites[Coordinate{y.I, y.J}] = true
+				badJumpingWrites[Coordinate{y.I, y.J}] = true
 			}
 		}
 	}
 
-	for k := range removeFromWrites {
-		delete((*possibleWrites), Coordinate{k.I, k.J})
-	}
+	return badJumpingWrites
 }
 
 // check if the solution block that you are presently in has other options that it might grow
@@ -246,8 +230,12 @@ func otherOptionExists(i, j, thisCount, targetValue int, alreadyCounted, already
 	if len(adjacentBlankValues) > 0 {
 		// NEXT if joining to the one of possible writes would make it over the targetValue, eliminate it from the set
 		// remove possible moves that will result in a too long section
-		// TODO: Do we need to add these bad jumping writes to the alreadyBoundAnalyzed Coordinate map?
-		removeBadJumpingWrites(i, j, thisCount, &adjacentBlankValues, board, (*board)[i][j])
+		// TODO: Do we need to add these bad jumping writes to the alreadyBoundAnalyzed Coordinate map? -- testing now
+		badJumpingWrites := identifyBadJumpingWrites(i, j, thisCount, &adjacentBlankValues, board, (*board)[i][j])
+		for k := range badJumpingWrites {
+			alreadyBoundAnalyzed[Coordinate{k.I, k.J}] = true
+			delete(adjacentBlankValues, Coordinate{k.I, k.J})
+		}
 	}
 	if !alreadyCounted[Coordinate{i, j}] && len(adjacentBlankValues) > 0 {
 		alreadyBoundAnalyzed[Coordinate{i, j}] = true
