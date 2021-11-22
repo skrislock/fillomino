@@ -35,7 +35,20 @@ otherOptionsSpaceCount -- using same alreadyAnalyzed counter? count the total in
 Idea:  OtherOptions and Possible Write are the same thing?
 
 
+FUTURE BOARD 2 (board2KeyTest)
+When the above logic works, the board will get to:
+5 6 6 6 2 6 6 6 7 7
+5 5 5 6 2 6 1 6 7 2
+2 2 5 6 6 1 7 6 7 2
+5 5 3 _ _ 6 7 1 7 7
+5 3 3 6 _ 6 7 7 1 7
+5 5 6 6 2 6 6 7 7 1
+4 3 3 6 2 5 6 5 7 5
+4 3 4 6 5 5 6 5 5 5
+4 2 4 6 5 2 5 2 2 1
+4 2 4 4 5 2 5 5 5 5
 
+The system should write 1 (can't be a 2) in 4,4 but it thinks it may be able to write a 3, so it dosn't write anything.  We should eliminate 3 as a possible write becuase it is the value of the bound space and it is adjacent to the bound space
 
 Present Board 5
 
@@ -50,4 +63,19 @@ Present Board 5
 4 3 3 _ 4 3 _ _ 3 3
 4 4 _ _ _ _ _ 4 4 4
 
-! 4 must be a square, as it can't leave beyond that square (jumping 4) and the size is four
+! 4 must be a square, as it can't leave beyond that square (jumping 4) and the size is four.  
+
+FUTURE FIVE TestBoard5KeySet
+
+4 4 4 4 1 4 4 1 4 4
+3 3 3 1 4 4 1 4 2 4
+2 4 4 3 3 2 2 4 2 4
+2 4 4 3 4 4 1 4 4 3
+3 3 1 4 1 4 4 _ 1 3
+3 4 4 4 2 _ _ _ _ 3
+1 2 2 3 2 4 4 4 2 1
+4 3 1 3 3 2 2 _ 2 3
+4 3 3 _ 4 3 _ _ 3 3
+4 4 _ _ _ _ _ 4 4 4
+
+5,8 is the crux, it must be 5, can't be 1 2 3 (adjacent doneset), can't be 4 (can't grow anywhere), space is 5
