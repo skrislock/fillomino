@@ -1,5 +1,9 @@
 # fillomino
 
+NEXT: Toothpaste Tube Force
+
+Tests: TestSolveBoard2, estToothpasteFill_NegativeTest
+
 Present Board 2
 
 5 6 6 6 2 6 6 6 7 7
@@ -63,7 +67,7 @@ Present Board 5
 4 3 3 _ 4 3 _ _ 3 3
 4 4 _ _ _ _ _ 4 4 4
 
-! 4 must be a square, as it can't leave beyond that square (jumping 4) and the size is four.  
+! 4 must be a square, as it can't leave beyond that square (jumping 4) and the size is four.  Diagonal must be OK at least
 
 FUTURE FIVE TestBoard5KeySet
 

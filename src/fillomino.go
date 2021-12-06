@@ -144,14 +144,39 @@ func solve(board [][]string) [][]string {
 							// we are not bound, but still might be in a positition to force
 							if len(possibleWrites) > 1 || hasOtherOption { // hasOtherOptions infers len(possibleWrites) == 1
 								alreadyForceAnalyzed := make(map[Coordinate]bool)
+								allOptionsAndCounts := make(map[Coordinate]int)
 
+								// Toothpaste Tube Force
+
+								// first, go through and count all spaces for all possible options
 								for k := range possibleWrites { // TODO if this is an array or slice maybe this can be cleaner
-									// consider this write (board[k.I][k.J]) for a force.
-									mySpaceCount := countContinuous(k.I, k.J, 1, alreadyForceAnalyzed, &board)
-									if mySpaceCount+thisCount <= targetValue {
-										fmt.Println("Working On Force")
-									}
+									mySpaceCount := countContinuous(k.I, k.J, 0, alreadyForceAnalyzed, &board)
+									// maybe remove bad writes?
+									allOptionsAndCounts[Coordinate{k.I, k.J}] = mySpaceCount
 								}
+
+								if hasOtherOption {
+									// need to add counting of other options to allOptionsAndCounts
+								}
+
+								if i == 3 && j == 5 {
+									fmt.Println("Checking i = 3, j = 5")
+								}
+
+								/*
+									// consider this write (board[k.I][k.J]) for a force.
+									// we need to have room to grow, potentially fully, into this space, meaning that there must be at least
+									// enough open space for the value at i.j to possibly grow in.  If there is not enough space, don't do any more
+									// calculations
+
+									// we have enough room to move into
+									// start to analyze all other possibleWrites + otherOptions and count their possible open space
+									//  -- we will only count each space no matter where we come from by passing around alreadyForceAnalyzed
+
+									mySpaceCount := countContinuous(k.I, k.J, 0, alreadyForceAnalyzed, &board)
+									if mySpaceCount+thisCount <= targetValue {
+										continue // there isn't enough room here
+									}*/
 							}
 
 						}
